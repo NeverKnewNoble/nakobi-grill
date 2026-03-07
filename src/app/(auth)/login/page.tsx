@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isValidEmail } from "@/utils/generalUtils";
 import { Eye, EyeOff, Lock, Mail, AlertCircle } from "lucide-react";
 import Link from "next/link";
 
@@ -23,6 +24,10 @@ export default function LoginPage() {
       // Basic validation
       if (!email || !password) {
         setError("Please fill in all fields");
+        return;
+      }
+      if (!isValidEmail(email)) {
+        setError("Please enter a valid email address");
         return;
       }
 
