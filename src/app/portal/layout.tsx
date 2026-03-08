@@ -1,9 +1,16 @@
+import { redirect } from "next/navigation"
+import { createClient } from "@/lib/supabase/server"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { AppSidebar } from "@/components/_ui/app-sidebar"
 import { MenuProvider } from "@/contexts/menu_context"
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default async function Layout({ children }: { children: React.ReactNode }) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) redirect("/login")
+
   return (
     <MenuProvider>
       <TooltipProvider>

@@ -1,50 +1,77 @@
 "use client"
 
-import { createContext, useContext, useState } from "react"
+import { createContext, useContext, useState, useEffect } from "react"
 import type { MenuItem, AddMenuItemPayload } from "@/types/orders"
-import { SEED_MENU } from "@/utils/sampleData"
-
-export const DEFAULT_CATEGORIES = ["Grills", "Rice & Sides", "Snacks", "Drinks"]
+import {
+  fetchCategories,
+  fetchMenuItems,
+  addCategorySupabase,
+  removeCategorySupabase,
+  addMenuItemSupabase,
+  removeMenuItemSupabase,
+} from "@/utils/settings"
 
 interface MenuContextValue {
   categories: string[]
   menuItems: MenuItem[]
-  addCategory: (name: string) => void
-  removeCategory: (name: string) => void
-  addMenuItem: (payload: AddMenuItemPayload) => void
-  removeMenuItem: (id: string) => void
+  addCategory: (name: string) => Promise<void>
+  removeCategory: (name: string) => Promise<void>
+  addMenuItem: (payload: AddMenuItemPayload) => Promise<void>
+  removeMenuItem: (id: string) => Promise<void>
 }
 
 const MenuContext = createContext<MenuContextValue | null>(null)
 
 export function MenuProvider({ children }: { children: React.ReactNode }) {
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES)
-  const [menuItems, setMenuItems] = useState<MenuItem[]>(SEED_MENU)
+  const [categories, setCategories] = useState<string[]>([])
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([])
 
-  function addCategory(name: string) {
+  useEffect(() => {
+    fetchCategories().then(setCategories).catch(console.error)
+    fetchMenuItems().then(setMenuItems).catch(console.error)
+  }, [])
+
+  async function refreshAll() {
+    const [cats, items] = await Promise.all([fetchCategories(), fetchMenuItems()])
+    setCategories(cats)
+    setMenuItems(items)
+  }
+
+  async function addCategory(name: string) {
     const trimmed = name.trim()
     if (!trimmed || categories.includes(trimmed)) return
+    await addCategorySupabase(trimmed)
     setCategories((prev) => [...prev, trimmed])
   }
 
-  function removeCategory(name: string) {
+  async function removeCategory(name: string) {
+    // Optimistic update
     setCategories((prev) => prev.filter((c) => c !== name))
     setMenuItems((prev) => prev.filter((i) => i.category !== name))
-  }
-
-  function addMenuItem(payload: AddMenuItemPayload) {
-    const item: MenuItem = {
-      id: crypto.randomUUID(),
-      name: payload.name.trim(),
-      description: payload.description.trim(),
-      price: parseFloat(payload.price),
-      category: payload.category,
+    try {
+      await removeCategorySupabase(name)
+    } catch {
+      // Revert on failure
+      await refreshAll()
     }
-    setMenuItems((prev) => [...prev, item])
   }
 
-  function removeMenuItem(id: string) {
+  async function addMenuItem(payload: AddMenuItemPayload) {
+    await addMenuItemSupabase(payload)
+    const items = await fetchMenuItems()
+    setMenuItems(items)
+  }
+
+  async function removeMenuItem(id: string) {
+    // Optimistic update
     setMenuItems((prev) => prev.filter((i) => i.id !== id))
+    try {
+      await removeMenuItemSupabase(id)
+    } catch {
+      // Revert on failure
+      const items = await fetchMenuItems()
+      setMenuItems(items)
+    }
   }
 
   return (

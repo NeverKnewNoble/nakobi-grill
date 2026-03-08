@@ -1,8 +1,5 @@
 import { AddMenuItemPayload } from "@/types/orders";
-import { SEED_USERS } from "@/utils/sampleData";
 
-// ── Current user (first admin) ────────────────────────────────────────────
-export const CURRENT_USER = SEED_USERS[0]
 export const EMPTY_MEAL: AddMenuItemPayload = { name: "", description: "", price: "", category: "" }
 
 // ── Field wrapper ─────────────────────────────────────────────────────────

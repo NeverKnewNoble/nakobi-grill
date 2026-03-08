@@ -1,10 +1,19 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, PackagePlus, PackageMinus, Package, SearchX, Plus, Trash2 } from "lucide-react"
+import { toast } from "sonner"
 import type { InventoryItem, AddInventoryPayload } from "@/types/inventory"
-import { SEED_INVENTORY } from "@/utils/sampleData"
-import { filterInventory, restockItem, stockOutItem, deleteInventoryItem, EMPTY_INVENTORY_FORM, validateInventoryForm, buildNewInventoryItem } from "@/utils/inventory"
+import {
+  filterInventory,
+  EMPTY_INVENTORY_FORM,
+  validateInventoryForm,
+  fetchInventory,
+  addInventoryItemSupabase,
+  restockItemSupabase,
+  stockOutItemSupabase,
+  deleteInventoryItemSupabase,
+} from "@/utils/inventory"
 import RestockModal from "@/components/_ui/restock_modal"
 import StockOutModal from "@/components/_ui/stock_out_modal"
 import AddInventoryModal from "@/components/_ui/add_inventory_modal"
@@ -14,10 +23,10 @@ import EmptyState from "@/components/_ui/empty_state"
 
 
 
-
 // ************* PAGE *********************
 export default function InventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>(SEED_INVENTORY)
+  const [items, setItems] = useState<InventoryItem[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [restockTarget, setRestockTarget] = useState<InventoryItem | null>(null)
   const [stockOutTarget, setStockOutTarget] = useState<InventoryItem | null>(null)
@@ -26,28 +35,64 @@ export default function InventoryPage() {
   const [addErrors, setAddErrors] = useState<Partial<Record<keyof AddInventoryPayload, string>>>({})
   const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null)
 
-  const filtered = filterInventory(items, search)
+  useEffect(() => {
+    fetchInventory()
+      .then(setItems)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
+  async function refresh() {
+    const data = await fetchInventory()
+    setItems(data)
+  }
+
+  const filtered = filterInventory(items, search)
   const lowCount = items.filter((i) => i.status === "low").length
   const criticalCount = items.filter((i) => i.status === "critical").length
 
-  function handleRestock(id: string, qty: number) {
-    setItems((prev) => restockItem(prev, id, qty))
+  async function handleRestock(id: string, qty: number) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
     setRestockTarget(null)
+    const toastId = toast.loading(`Restocking ${item.ingredient}…`)
+    try {
+      await restockItemSupabase(item, qty)
+      await refresh()
+      toast.success(`${item.ingredient} restocked by ${qty} ${item.unit}.`, { id: toastId })
+    } catch {
+      toast.error("Failed to restock. Please try again.", { id: toastId })
+    }
   }
 
-  function handleStockOut(id: string, qty: number) {
-    setItems((prev) => stockOutItem(prev, id, qty))
+  async function handleStockOut(id: string, qty: number) {
+    const item = items.find((i) => i.id === id)
+    if (!item) return
     setStockOutTarget(null)
+    const toastId = toast.loading(`Recording stock out…`)
+    try {
+      await stockOutItemSupabase(item, qty)
+      await refresh()
+      toast.success(`${item.ingredient} stocked out by ${qty} ${item.unit}.`, { id: toastId })
+    } catch {
+      toast.error("Failed to record stock out. Please try again.", { id: toastId })
+    }
   }
 
-  function handleAddItem() {
+  async function handleAddItem() {
     const errs = validateInventoryForm(addForm)
     if (Object.keys(errs).length > 0) { setAddErrors(errs); return }
-    setItems((prev) => [...prev, buildNewInventoryItem(addForm, prev.length)])
-    setAddForm(EMPTY_INVENTORY_FORM)
-    setAddErrors({})
-    setAddOpen(false)
+    const toastId = toast.loading("Adding item…")
+    try {
+      await addInventoryItemSupabase(addForm)
+      await refresh()
+      setAddForm(EMPTY_INVENTORY_FORM)
+      setAddErrors({})
+      setAddOpen(false)
+      toast.success(`${addForm.ingredient.trim()} added to inventory.`, { id: toastId })
+    } catch {
+      toast.error("Failed to add item. Please try again.", { id: toastId })
+    }
   }
 
   function handleAddClose() {
@@ -56,9 +101,18 @@ export default function InventoryPage() {
     setAddOpen(false)
   }
 
-  function handleConfirmDelete() {
-    setItems((prev) => deleteInventoryItem(prev, deleteTarget!.id))
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return
+    const { id, ingredient } = deleteTarget
     setDeleteTarget(null)
+    const toastId = toast.loading(`Removing ${ingredient}…`)
+    try {
+      await deleteInventoryItemSupabase(id)
+      await refresh()
+      toast.success(`${ingredient} removed from inventory.`, { id: toastId })
+    } catch {
+      toast.error("Failed to delete item. Please try again.", { id: toastId })
+    }
   }
 
   return (
@@ -121,7 +175,13 @@ export default function InventoryPage() {
             </tr>
           </thead>
           <tbody className="divide-y divide-white/5">
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="py-16 text-center text-sm text-zinc-500">
+                  Loading inventory…
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={7}>
                   <EmptyState

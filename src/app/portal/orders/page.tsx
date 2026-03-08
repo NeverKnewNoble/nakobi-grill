@@ -1,19 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   ShoppingCart, Trash2, Plus, Minus, ChevronRight, X,
   ClipboardList,
 } from "lucide-react"
+import { toast } from "sonner"
 import type { MenuItem, Order, OrderItem, OrderType } from "@/types/orders"
-import { addToOrder, removeFromOrder, updateQty, calcTotal, buildOrder, filterMenu, cycleStatus } from "@/utils/orders"
+import {
+  addToOrder, removeFromOrder, updateQty, calcTotal,
+  filterMenu, cycleStatus,
+  fetchOrders, placeOrderSupabase, updateOrderStatusSupabase,
+} from "@/utils/orders"
 import { TakeOrderModalProps, STATUS_CONFIG, getCategoryIcon } from "@/helpers/orders_ui"
 import { useMenu } from "@/contexts/menu_context"
 
 
 
 
-// ****************** PAGE *************************************
+// ****************** Take Order Modal *************************************
 function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
   const { categories, menuItems } = useMenu()
   const allCategories = ["All", ...categories]
@@ -21,6 +26,7 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
   const [activeCategory, setActiveCategory] = useState("All")
   const [orderItems, setOrderItems] = useState<OrderItem[]>([])
   const [orderType, setOrderType] = useState<OrderType>("Dine In")
+  const [placing, setPlacing] = useState(false)
 
   const visibleMenu = filterMenu(menuItems, activeCategory)
   const total = calcTotal(orderItems)
@@ -37,9 +43,14 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
     setOrderItems((prev) => removeFromOrder(prev, id))
   }
 
-  function handlePlace() {
-    if (orderItems.length === 0) return
-    onPlace(orderItems, orderType)
+  async function handlePlace() {
+    if (orderItems.length === 0 || placing) return
+    setPlacing(true)
+    try {
+      await onPlace(orderItems, orderType)
+    } finally {
+      setPlacing(false)
+    }
   }
 
   return (
@@ -187,10 +198,10 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
             </div>
             <button
               onClick={handlePlace}
-              disabled={orderItems.length === 0}
+              disabled={orderItems.length === 0 || placing}
               className="w-full rounded-full bg-orange-500 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             >
-              Place Order
+              {placing ? "Placing…" : "Place Order"}
             </button>
           </div>
         </div>
@@ -202,24 +213,55 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
 // ── Orders Page ────────────────────────────────────────────────────────────
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([])
-  const [orderCount, setOrderCount] = useState(1)
+  const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
 
-  function handlePlaceOrder(items: OrderItem[], type: OrderType) {
-    const order = buildOrder(items, type, orderCount)
-    setOrders((prev) => [order, ...prev])
-    setOrderCount((c) => c + 1)
-    setModalOpen(false)
+  useEffect(() => {
+    fetchOrders()
+      .then(setOrders)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function refresh() {
+    const data = await fetchOrders()
+    setOrders(data)
   }
 
-  function handleAdvanceStatus(orderId: string) {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: cycleStatus(o.status) } : o))
-    )
+  async function handlePlaceOrder(items: OrderItem[], type: OrderType) {
+    const toastId = toast.loading("Placing order…")
+    try {
+      const order = await placeOrderSupabase(items, type)
+      setOrders((prev) => [order, ...prev])
+      setModalOpen(false)
+      toast.success(`Order ${order.orderNumber} placed!`, { id: toastId })
+    } catch {
+      toast.error("Failed to place order. Please try again.", { id: toastId })
+    }
   }
 
-  function handleCancel(orderId: string) {
-    setOrders((prev) => prev.filter((o) => o.id !== orderId))
+  async function handleAdvanceStatus(order: Order) {
+    const next = cycleStatus(order.status)
+    // Optimistic update
+    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: next } : o))
+    try {
+      await updateOrderStatusSupabase(order.id, next)
+    } catch {
+      setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, status: order.status } : o))
+      toast.error("Failed to update order status.")
+    }
+  }
+
+  async function handleCancel(order: Order) {
+    // Optimistic — remove from list immediately
+    setOrders((prev) => prev.filter((o) => o.id !== order.id))
+    try {
+      await updateOrderStatusSupabase(order.id, "cancelled")
+      toast.success(`Order ${order.orderNumber} cancelled.`)
+    } catch {
+      await refresh()
+      toast.error("Failed to cancel order.")
+    }
   }
 
   const activeCount = orders.filter((o) => o.status !== "ready").length
@@ -231,7 +273,11 @@ export default function OrdersPage() {
         <div>
           <h1 className="text-2xl font-bold text-white">Orders</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
-            {orders.length === 0 ? "No active orders" : `${activeCount} active · ${orders.length} total`}
+            {loading
+              ? "Loading orders…"
+              : orders.length === 0
+              ? "No active orders"
+              : `${activeCount} active · ${orders.length} total`}
           </p>
         </div>
         <button
@@ -243,8 +289,8 @@ export default function OrdersPage() {
         </button>
       </div>
 
-      {/* Empty state */}
-      {orders.length === 0 && (
+      {/* Empty / loading state */}
+      {!loading && orders.length === 0 && (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-white/10 py-24">
           <ClipboardList className="h-10 w-10 text-zinc-700" />
           <div className="text-center">
@@ -308,7 +354,7 @@ export default function OrdersPage() {
                 {/* Actions */}
                 <div className="flex gap-2 mt-auto">
                   <button
-                    onClick={() => handleCancel(order.id)}
+                    onClick={() => handleCancel(order)}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full border border-red-500/20 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/10 transition-colors"
                   >
                     <X className="h-3.5 w-3.5" />
@@ -316,7 +362,7 @@ export default function OrdersPage() {
                   </button>
                   {order.status !== "ready" && (
                     <button
-                      onClick={() => handleAdvanceStatus(order.id)}
+                      onClick={() => handleAdvanceStatus(order)}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 py-2 text-xs font-semibold text-white transition-colors"
                     >
                       {order.status === "pending" ? "Start" : "Mark Ready"}

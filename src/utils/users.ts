@@ -1,5 +1,6 @@
-import type { User, UserRole, CreateUserPayload, EditUserPayload } from "@/types/users"
+import type { User, UserRole, UserStatus, CreateUserPayload, EditUserPayload } from "@/types/users"
 import { isValidEmail } from "@/utils/generalUtils"
+import { supabase } from "@/lib/supabase/client"
 
 export const EMPTY_FORM: CreateUserPayload = {
   full_name: "",
@@ -92,3 +93,44 @@ export function deleteUser(users: User[], id: string): User[] {
 
 
 // ********** SUPABASE FUNCTIONS ***************
+
+/** Fetch all staff profiles except the currently logged-in user, newest first. */
+export async function fetchUsers(): Promise<User[]> {
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let query = supabase
+    .from("profiles")
+    .select("*")
+    .order("created_at", { ascending: false })
+
+  if (user) query = query.neq("id", user.id)
+
+  const { data, error } = await query
+  if (error) throw error
+  return data as User[]
+}
+
+/** Update an existing profile's editable fields. */
+export async function updateUserSupabase(id: string, payload: EditUserPayload): Promise<void> {
+  const { error } = await supabase
+    .from("profiles")
+    .update({
+      full_name: payload.full_name,
+      email: payload.email,
+      role: payload.role,
+      shift_type: payload.shift_type,
+      status: payload.status,
+    })
+    .eq("id", id)
+  if (error) throw error
+}
+
+/** Toggle a user's active/inactive status. */
+export async function toggleUserStatusSupabase(id: string, currentStatus: UserStatus): Promise<void> {
+  const newStatus: UserStatus = currentStatus === "active" ? "inactive" : "active"
+  const { error } = await supabase
+    .from("profiles")
+    .update({ status: newStatus })
+    .eq("id", id)
+  if (error) throw error
+}

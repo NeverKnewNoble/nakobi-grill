@@ -1,21 +1,32 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import {
   User, UtensilsCrossed, Plus, Trash2, Tag, Mail,
-  Shield, Clock4, CheckCircle, XCircle, Pencil,
+  Shield, Clock4, CheckCircle, XCircle,
 } from "lucide-react"
 import { Button } from "@heroui/react"
 import type { AddMenuItemPayload } from "@/types/orders"
+import type { User as UserProfile } from "@/types/users"
 import { useMenu } from "@/contexts/menu_context"
 import { getCategoryIcon } from "@/helpers/orders_ui"
-import { CURRENT_USER, EMPTY_MEAL, Field } from "@/helpers/settings_ui"
+import { EMPTY_MEAL, Field } from "@/helpers/settings_ui"
+import { fetchCurrentProfile } from "@/utils/settings"
 
 
 
 // *************** Settings page ***************
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<"profile" | "menu">("profile")
+  const [role, setRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchCurrentProfile()
+      .then((p) => setRole(p?.role ?? null))
+      .catch(console.error)
+  }, [])
+
+  const isAdmin = role === "Admin"
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-5xl">
@@ -36,25 +47,35 @@ export default function SettingsPage() {
           <User className="h-4 w-4" />
           User Info
         </button>
-        <button
-          onClick={() => setActiveTab("menu")}
-          className={`inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-colors ${
-            activeTab === "menu" ? "bg-orange-500 text-white" : "text-zinc-400 hover:text-white"
-          }`}
-        >
-          <UtensilsCrossed className="h-4 w-4" />
-          Menu
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setActiveTab("menu")}
+            className={`inline-flex items-center gap-2 rounded-lg px-5 py-2 text-sm font-semibold transition-colors ${
+              activeTab === "menu" ? "bg-orange-500 text-white" : "text-zinc-400 hover:text-white"
+            }`}
+          >
+            <UtensilsCrossed className="h-4 w-4" />
+            Menu
+          </button>
+        )}
       </div>
 
-      {activeTab === "profile" ? <ProfileTab /> : <MenuTab />}
+      {activeTab === "profile" || !isAdmin ? <ProfileTab /> : <MenuTab />}
     </div>
   )
 }
 
 // ── Profile Tab ───────────────────────────────────────────────────────────
 function ProfileTab() {
-  const initials = CURRENT_USER.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+
+  useEffect(() => {
+    fetchCurrentProfile().then(setProfile).catch(console.error)
+  }, [])
+
+  const initials = profile
+    ? profile.full_name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "…"
 
   return (
     <div className="flex flex-col gap-5 max-w-lg">
@@ -64,26 +85,26 @@ function ProfileTab() {
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-lg font-bold text-white">{CURRENT_USER.full_name}</p>
-          <p className="text-sm text-zinc-500">{CURRENT_USER.email}</p>
+          <p className="text-lg font-bold text-white">{profile?.full_name ?? "Loading…"}</p>
+          <p className="text-sm text-zinc-500">{profile?.email ?? ""}</p>
         </div>
- 
-  
       </div>
 
       {/* Info rows */}
-      <div className="rounded-2xl border border-white/5 bg-zinc-900 overflow-hidden divide-y divide-white/5">
-        <InfoRow icon={Mail} label="Email" value={CURRENT_USER.email} />
-        <InfoRow icon={Shield} label="Role" value={CURRENT_USER.role} valueColor="text-orange-400" />
-        <InfoRow icon={Clock4} label="Shift" value={CURRENT_USER.shift_type} />
-        <InfoRow
-          icon={CURRENT_USER.status === "active" ? CheckCircle : XCircle}
-          label="Status"
-          value={CURRENT_USER.status === "active" ? "Active" : "Inactive"}
-          valueColor={CURRENT_USER.status === "active" ? "text-emerald-400" : "text-red-400"}
-        />
-        <InfoRow icon={User} label="Member since" value={CURRENT_USER.created_at} />
-      </div>
+      {profile && (
+        <div className="rounded-2xl border border-white/5 bg-zinc-900 overflow-hidden divide-y divide-white/5">
+          <InfoRow icon={Mail} label="Email" value={profile.email} />
+          <InfoRow icon={Shield} label="Role" value={profile.role} valueColor="text-orange-400" />
+          <InfoRow icon={Clock4} label="Shift" value={profile.shift_type} />
+          <InfoRow
+            icon={profile.status === "active" ? CheckCircle : XCircle}
+            label="Status"
+            value={profile.status === "active" ? "Active" : "Inactive"}
+            valueColor={profile.status === "active" ? "text-emerald-400" : "text-red-400"}
+          />
+          <InfoRow icon={User} label="Member since" value={profile.created_at} />
+        </div>
+      )}
     </div>
   )
 }

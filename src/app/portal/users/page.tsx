@@ -3,28 +3,27 @@
 import { useState, useEffect, useRef } from "react"
 import { UserPlus, Search, MoreHorizontal, Users, SearchX, Pencil, Trash2 } from "lucide-react"
 import { Button } from "@heroui/react"
-import type { User, UserRole, CreateUserPayload, EditUserPayload } from "@/types/users"
+import type { User, UserRole, UserStatus, CreateUserPayload, EditUserPayload } from "@/types/users"
 import CreateUserModal from "@/components/_ui/create_user_modal"
 import EditUserModal from "@/components/_ui/edit_user_modal"
 import DeleteAlert from "@/components/_ui/delete_alert"
 import EmptyState from "@/components/_ui/empty_state"
-import { SEED_USERS } from "@/utils/sampleData"
 import {
   EMPTY_FORM,
   EMPTY_EDIT_FORM,
   roleColor,
   validateUserForm,
   validateEditForm,
-  buildNewUser,
   filterUsers,
   toggleUserStatus,
-  updateUser,
-  deleteUser,
   userToEditForm,
+  fetchUsers,
+  updateUserSupabase,
+  toggleUserStatusSupabase,
 } from "@/utils/users"
+import { createUserAction, deleteUserAction } from "@/actions/users"
 import { roleIcon, Avatar } from "@/helpers/users_ui"
-
-
+import { toast } from "sonner"
 
 
 
@@ -74,7 +73,8 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
 // ***************. Page ******************
 export default function UsersPage() {
   const [modalOpen, setModalOpen] = useState(false)
-  const [users, setUsers] = useState<User[]>(SEED_USERS)
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [form, setForm] = useState<CreateUserPayload>(EMPTY_FORM)
   const [errors, setErrors] = useState<Partial<Record<keyof CreateUserPayload, string>>>({})
@@ -87,15 +87,35 @@ export default function UsersPage() {
   // Delete
   const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
 
+  useEffect(() => {
+    fetchUsers()
+      .then(setUsers)
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function refresh() {
+    const data = await fetchUsers()
+    setUsers(data)
+  }
+
   const filtered = filterUsers(users, search)
 
-  function handleCreate() {
+  async function handleCreate() {
     const next = validateUserForm(form)
     if (Object.keys(next).length > 0) { setErrors(next); return }
-    setUsers((prev) => [buildNewUser(form), ...prev])
+    const toastId = toast.loading("Creating user…")
+    const result = await createUserAction(form)
+    if (result.error) {
+      setErrors({ email: result.error })
+      toast.error(result.error, { id: toastId })
+      return
+    }
+    await refresh()
     setForm(EMPTY_FORM)
     setErrors({})
     setModalOpen(false)
+    toast.success("User created successfully!", { id: toastId })
   }
 
   function handleClose() {
@@ -104,8 +124,16 @@ export default function UsersPage() {
     setModalOpen(false)
   }
 
-  function handleToggleStatus(id: string) {
+  async function handleToggleStatus(id: string, currentStatus: UserStatus) {
     setUsers((prev) => toggleUserStatus(prev, id))
+    try {
+      await toggleUserStatusSupabase(id, currentStatus)
+      const newStatus = currentStatus === "active" ? "inactive" : "active"
+      toast.success(`User set to ${newStatus}`)
+    } catch {
+      setUsers((prev) => toggleUserStatus(prev, id))
+      toast.error("Failed to update status. Please try again.")
+    }
   }
 
   function handleOpenEdit(user: User) {
@@ -114,16 +142,34 @@ export default function UsersPage() {
     setEditErrors({})
   }
 
-  function handleSaveEdit() {
+  async function handleSaveEdit() {
     const errs = validateEditForm(editForm)
     if (Object.keys(errs).length > 0) { setEditErrors(errs); return }
-    setUsers((prev) => updateUser(prev, editTarget!.id, editForm))
-    setEditTarget(null)
+    const toastId = toast.loading("Saving changes…")
+    try {
+      await updateUserSupabase(editTarget!.id, editForm)
+      await refresh()
+      setEditTarget(null)
+      toast.success("User updated successfully!", { id: toastId })
+    } catch {
+      setEditErrors({ full_name: "Failed to save. Please try again." })
+      toast.error("Failed to save changes.", { id: toastId })
+    }
   }
 
-  function handleConfirmDelete() {
-    setUsers((prev) => deleteUser(prev, deleteTarget!.id))
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return
+    const name = deleteTarget.full_name
+    const id = deleteTarget.id
     setDeleteTarget(null)
+    const toastId = toast.loading("Deleting user…")
+    const result = await deleteUserAction(id)
+    if (!result.error) {
+      await refresh()
+      toast.success(`${name} has been removed.`, { id: toastId })
+    } else {
+      toast.error("Failed to delete user.", { id: toastId })
+    }
   }
 
   return (
@@ -187,7 +233,13 @@ export default function UsersPage() {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="py-16 text-center text-sm text-zinc-500">
+                  Loading users…
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={6}>
                   <EmptyState
@@ -240,7 +292,7 @@ export default function UsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => handleToggleStatus(user.id)}
+                      onClick={() => handleToggleStatus(user.id, user.status)}
                       className={`rounded-full px-2.5 py-1 text-xs font-semibold transition-colors ${
                         user.status === "active"
                           ? "bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25"

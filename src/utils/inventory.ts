@@ -77,3 +77,86 @@ export function buildNewInventoryItem(form: AddInventoryPayload, existingCount: 
   }
 }
 
+// ************* SUPABASE FUNCTIONS ******************
+import { supabase } from "@/lib/supabase/client"
+
+/** Fetch all inventory items ordered by ingredient name. */
+export async function fetchInventory(): Promise<InventoryItem[]> {
+  const { data, error } = await supabase
+    .from("inventory_items")
+    .select("*")
+    .order("ingredient", { ascending: true })
+  if (error) throw error
+  return data as InventoryItem[]
+}
+
+/** Insert a new inventory item. Status is auto-computed by the DB trigger. */
+export async function addInventoryItemSupabase(form: AddInventoryPayload): Promise<void> {
+  const { error } = await supabase
+    .from("inventory_items")
+    .insert({
+      ingredient: form.ingredient.trim(),
+      unit: form.unit,
+      current_stock: parseFloat(form.current_stock),
+      threshold: parseFloat(form.threshold),
+      weekly_usage: parseFloat(form.weekly_usage),
+    })
+  if (error) throw error
+}
+
+/**
+ * Add stock to an item and write an inventory_log entry.
+ * The trigger auto-recalculates status on current_stock update.
+ */
+export async function restockItemSupabase(item: InventoryItem, qty: number): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  const newStock = item.current_stock + qty
+
+  const { error } = await supabase
+    .from("inventory_items")
+    .update({ current_stock: newStock })
+    .eq("id", item.id)
+  if (error) throw error
+
+  await supabase.from("inventory_logs").insert({
+    item_id: item.id,
+    action: "restock",
+    quantity: qty,
+    stock_before: item.current_stock,
+    stock_after: newStock,
+    performed_by: user?.id ?? null,
+  })
+}
+
+/**
+ * Deduct stock from an item (floor 0) and write an inventory_log entry.
+ * The trigger auto-recalculates status on current_stock update.
+ */
+export async function stockOutItemSupabase(item: InventoryItem, qty: number): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser()
+  const newStock = Math.max(0, item.current_stock - qty)
+
+  const { error } = await supabase
+    .from("inventory_items")
+    .update({ current_stock: newStock })
+    .eq("id", item.id)
+  if (error) throw error
+
+  await supabase.from("inventory_logs").insert({
+    item_id: item.id,
+    action: "stock_out",
+    quantity: qty,
+    stock_before: item.current_stock,
+    stock_after: newStock,
+    performed_by: user?.id ?? null,
+  })
+}
+
+/** Hard-delete an inventory item (logs cascade via ON DELETE CASCADE). */
+export async function deleteInventoryItemSupabase(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("inventory_items")
+    .delete()
+    .eq("id", id)
+  if (error) throw error
+}
