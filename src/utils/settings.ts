@@ -123,7 +123,7 @@ export async function addMenuItemSupabase(payload: AddMenuItemPayload): Promise<
   if (error) throw error
 }
 
-/** Hard-delete a menu item by id. */
+/** Hard-delete a menu item. Existing order_items retain their name/price snapshots; menu_item_id becomes NULL. */
 export async function removeMenuItemSupabase(id: string): Promise<void> {
   const { error } = await supabase
     .from("menu_items")

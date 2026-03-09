@@ -65,7 +65,7 @@ CREATE TYPE inventory_action AS ENUM ('restock', 'stock_out', 'manual_adjustment
 CREATE TYPE order_type AS ENUM ('Dine In', 'Takeaway');
 
 -- Order lifecycle status
-CREATE TYPE order_status AS ENUM ('pending', 'preparing', 'ready', 'cancelled');
+CREATE TYPE order_status AS ENUM ('pending', 'ready', 'cancelled');
 ```
 
 ---
@@ -217,7 +217,7 @@ CREATE TABLE public.orders (
   id            UUID         PRIMARY KEY DEFAULT gen_random_uuid(),
   order_number  TEXT         NOT NULL UNIQUE,  -- e.g. #034
   type          order_type   NOT NULL DEFAULT 'Dine In',
-  status        order_status NOT NULL DEFAULT 'pending',
+  status        order_status NOT NULL DEFAULT 'pending',  -- 'pending' | 'ready' | 'cancelled'
   total         NUMERIC(10,2) NOT NULL DEFAULT 0 CHECK (total >= 0),
   created_by    UUID         REFERENCES public.profiles(id) ON DELETE SET NULL,
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
@@ -269,7 +269,7 @@ Line items for each order. Stores a snapshot of the menu item price at time of o
 CREATE TABLE public.order_items (
   id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   order_id      UUID    NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
-  menu_item_id  UUID    NOT NULL REFERENCES public.menu_items(id) ON DELETE RESTRICT,
+  menu_item_id  UUID             REFERENCES public.menu_items(id) ON DELETE SET NULL,
   menu_item_name TEXT   NOT NULL,  -- snapshot of name at time of order
   unit_price    NUMERIC(10,2) NOT NULL CHECK (unit_price > 0),
   qty           INT     NOT NULL CHECK (qty > 0),

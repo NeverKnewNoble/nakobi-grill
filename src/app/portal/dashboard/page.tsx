@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import {
   TrendingUp, ShoppingBag, Users, AlertTriangle,
-  Clock, CheckCheck, Loader2, ArrowRight,
+  Clock, CheckCheck, ArrowRight,
   Package, UserCheck,
 } from "lucide-react"
 import Link from "next/link"
@@ -22,9 +22,8 @@ import {
 
 // ── Status config ──────────────────────────────────────────────────────────
 const STATUS = {
-  pending:   { label: "Pending",   icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10"   },
-  preparing: { label: "Preparing", icon: Loader2,    color: "text-orange-400",  bg: "bg-orange-500/10"  },
-  ready:     { label: "Ready",     icon: CheckCheck, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  pending: { label: "Pending", icon: Clock,      color: "text-amber-400",   bg: "bg-amber-500/10"   },
+  ready:   { label: "Ready",   icon: CheckCheck, color: "text-emerald-400", bg: "bg-emerald-500/10" },
 }
 
 function todayLabel() {
@@ -71,14 +70,14 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6 p-6">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <p className="text-sm text-zinc-500 mt-0.5">{todayLabel()}</p>
         </div>
         <Link
           href="/portal/orders"
-          className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 transition-colors w-full sm:w-auto"
         >
           <ShoppingBag className="h-4 w-4" />
           Take Order
@@ -153,53 +152,55 @@ export default function DashboardPage() {
                 View all <ArrowRight className="h-3 w-3" />
               </Link>
             </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-white/5 text-left">
-                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Order</th>
-                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Items</th>
-                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Type</th>
-                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Total</th>
-                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Status</th>
-                  <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Time</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {loading ? (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-xs text-zinc-600">Loading orders…</td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/5 text-left">
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Order</th>
+                    <th className="hidden md:table-cell px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Items</th>
+                    <th className="hidden sm:table-cell px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Type</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Total</th>
+                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Status</th>
+                    <th className="hidden sm:table-cell px-5 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">Time</th>
                   </tr>
-                ) : orders.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="py-10 text-center text-xs text-zinc-600">No orders yet today.</td>
-                  </tr>
-                ) : (
-                  orders.map((order) => {
-                    const cfg = STATUS[order.status] ?? STATUS.pending
-                    const Icon = cfg.icon
-                    return (
-                      <tr key={order.id} className="hover:bg-white/2 transition-colors">
-                        <td className="px-5 py-3.5 font-bold text-white">{order.orderNumber}</td>
-                        <td className="px-5 py-3.5 text-zinc-400 text-xs max-w-45 truncate">{order.itemsSummary}</td>
-                        <td className="px-5 py-3.5">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
-                            {order.type}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 font-semibold text-white">GHC {order.total.toFixed(2)}</td>
-                        <td className="px-5 py-3.5">
-                          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cfg.color} ${cfg.bg}`}>
-                            <Icon className={`h-3 w-3 ${order.status === "preparing" ? "animate-spin" : ""}`} />
-                            {cfg.label}
-                          </span>
-                        </td>
-                        <td className="px-5 py-3.5 text-zinc-500 text-xs">{order.createdAt}</td>
-                      </tr>
-                    )
-                  })
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-xs text-zinc-600">Loading orders…</td>
+                    </tr>
+                  ) : orders.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-xs text-zinc-600">No orders yet today.</td>
+                    </tr>
+                  ) : (
+                    orders.map((order) => {
+                      const cfg = STATUS[order.status] ?? STATUS.pending
+                      const Icon = cfg.icon
+                      return (
+                        <tr key={order.id} className="hover:bg-white/2 transition-colors">
+                          <td className="px-5 py-3.5 font-bold text-white">{order.orderNumber}</td>
+                          <td className="hidden md:table-cell px-5 py-3.5 text-zinc-400 text-xs max-w-45 truncate">{order.itemsSummary}</td>
+                          <td className="hidden sm:table-cell px-5 py-3.5">
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold text-zinc-400">
+                              {order.type}
+                            </span>
+                          </td>
+                          <td className="px-5 py-3.5 font-semibold text-white">GHC {order.total.toFixed(2)}</td>
+                          <td className="px-5 py-3.5">
+                            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${cfg.color} ${cfg.bg}`}>
+                              <Icon className="h-3 w-3" />
+                              {cfg.label}
+                            </span>
+                          </td>
+                          <td className="hidden sm:table-cell px-5 py-3.5 text-zinc-500 text-xs">{order.createdAt}</td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Top selling items */}

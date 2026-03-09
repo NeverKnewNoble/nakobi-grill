@@ -44,8 +44,6 @@ export function filterMenu<T extends { category: string }>(
 }
 
 export function cycleStatus(status: Order["status"]): Order["status"] {
-  if (status === "pending") return "preparing"
-  if (status === "preparing") return "ready"
   return "ready"
 }
 
@@ -154,10 +152,10 @@ export async function placeOrderSupabase(
   }
 }
 
-/** Advance an order's status (pending → preparing → ready) or cancel it. */
+/** Advance an order's status (pending → ready) or cancel it. */
 export async function updateOrderStatusSupabase(
   id: string,
-  status: "pending" | "preparing" | "ready" | "cancelled"
+  status: "pending" | "ready" | "cancelled"
 ): Promise<void> {
   const { error } = await supabase
     .from("orders")

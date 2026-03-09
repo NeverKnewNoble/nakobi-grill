@@ -19,7 +19,7 @@ export interface RecentOrder {
   itemsSummary: string
   type: string
   total: number
-  status: "pending" | "preparing" | "ready"
+  status: "pending" | "ready"
   createdAt: string
 }
 

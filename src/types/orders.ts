@@ -1,6 +1,6 @@
 export type MenuCategory = string   // user-defined; defaults: Grills, Rice & Sides, Snacks, Drinks
 export type OrderType = "Dine In" | "Takeaway"
-export type OrderStatus = "pending" | "preparing" | "ready"
+export type OrderStatus = "pending" | "ready"
 
 export interface MenuItem {
   id: string

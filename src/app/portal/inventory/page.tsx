@@ -34,6 +34,7 @@ export default function InventoryPage() {
   const [addForm, setAddForm] = useState<AddInventoryPayload>(EMPTY_INVENTORY_FORM)
   const [addErrors, setAddErrors] = useState<Partial<Record<keyof AddInventoryPayload, string>>>({})
   const [deleteTarget, setDeleteTarget] = useState<InventoryItem | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
     fetchInventory()
@@ -118,14 +119,14 @@ export default function InventoryPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Inventory</h1>
           <p className="text-sm text-zinc-500">Track and manage ingredient stock levels</p>
         </div>
         <button
           onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 transition-colors w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Add Item
@@ -162,99 +163,137 @@ export default function InventoryPage() {
 
       {/* Table */}
       <div className="rounded-2xl border border-white/5 bg-zinc-900 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-white/5 text-left">
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Ingredient</th>
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Current Stock</th>
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Threshold</th>
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Weekly Usage</th>
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Status</th>
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Last Updated</th>
-              <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500 w-px whitespace-nowrap">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/5">
-            {loading ? (
-              <tr>
-                <td colSpan={7} className="py-16 text-center text-sm text-zinc-500">
-                  Loading inventory…
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-white/5 text-left">
+                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Ingredient</th>
+                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Stock</th>
+                <th className="hidden md:table-cell px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Threshold</th>
+                <th className="hidden lg:table-cell px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Weekly Usage</th>
+                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Status</th>
+                <th className="hidden md:table-cell px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500">Last Updated</th>
+                <th className="px-5 py-3.5 text-xs font-semibold uppercase tracking-widest text-zinc-500 w-px whitespace-nowrap">Actions</th>
               </tr>
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={7}>
-                  <EmptyState
-                    icon={search ? SearchX : Package}
-                    title={search ? "No ingredients found" : "No inventory items"}
-                    description={
-                      search
-                        ? `No ingredients match "${search}". Try a different search term.`
-                        : "Your inventory is empty. Add ingredients to get started."
-                    }
-                    action={
-                      !search ? (
-                        <button
-                          onClick={() => setAddOpen(true)}
-                          className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-400 transition-colors"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Add Item
-                        </button>
-                      ) : undefined
-                    }
-                  />
-                </td>
-              </tr>
-            ) : (
-              filtered.map((item) => (
-                <tr key={item.id} className="hover:bg-white/2 transition-colors">
-                  <td className="px-5 py-4 font-medium text-white">{item.ingredient}</td>
-                  <td className="px-5 py-4 text-zinc-300">
-                    {item.current_stock}{" "}
-                    <span className="text-xs text-zinc-500">{item.unit}</span>
-                  </td>
-                  <td className="px-5 py-4 text-zinc-400">
-                    {item.threshold}{" "}
-                    <span className="text-xs text-zinc-500">{item.unit}</span>
-                  </td>
-                  <td className="px-5 py-4 text-zinc-400">
-                    {item.weekly_usage}{" "}
-                    <span className="text-xs text-zinc-500">{item.unit}</span>
-                  </td>
-                  <td className="px-5 py-4">
-                    <StatusBadge status={item.status} />
-                  </td>
-                  <td className="px-5 py-4 text-zinc-500 text-xs">{item.last_updated}</td>
-                  <td className="px-5 py-4 w-px whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setRestockTarget(item)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
-                      >
-                        <PackagePlus className="h-3.5 w-3.5" />
-                        Restock
-                      </button>
-                      <button
-                        onClick={() => setStockOutTarget(item)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-400 hover:bg-orange-500/20 transition-colors"
-                      >
-                        <PackageMinus className="h-3.5 w-3.5" />
-                        Stock Out
-                      </button>
-                      <button
-                        onClick={() => setDeleteTarget(item)}
-                        className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 hover:bg-red-500/10 hover:text-red-400 transition-colors"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
+            </thead>
+            <tbody className="divide-y divide-white/5">
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="py-16 text-center text-sm text-zinc-500">
+                    Loading inventory…
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : filtered.length === 0 ? (
+                <tr>
+                  <td colSpan={7}>
+                    <EmptyState
+                      icon={search ? SearchX : Package}
+                      title={search ? "No ingredients found" : "No inventory items"}
+                      description={
+                        search
+                          ? `No ingredients match "${search}". Try a different search term.`
+                          : "Your inventory is empty. Add ingredients to get started."
+                      }
+                      action={
+                        !search ? (
+                          <button
+                            onClick={() => setAddOpen(true)}
+                            className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-4 py-2 text-xs font-bold text-white hover:bg-orange-400 transition-colors"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Add Item
+                          </button>
+                        ) : undefined
+                      }
+                    />
+                  </td>
+                </tr>
+              ) : (
+                filtered.flatMap((item) => {
+                  const isSelected = selectedId === item.id
+                  return [
+                    <tr
+                      key={item.id}
+                      onClick={() => setSelectedId(isSelected ? null : item.id)}
+                      className={`transition-colors cursor-pointer sm:cursor-default ${isSelected ? "bg-white/3" : "hover:bg-white/2"}`}
+                    >
+                      <td className="px-5 py-4 font-medium text-white">{item.ingredient}</td>
+                      <td className="px-5 py-4 text-zinc-300 whitespace-nowrap">
+                        {item.current_stock}{" "}
+                        <span className="text-xs text-zinc-500">{item.unit}</span>
+                      </td>
+                      <td className="hidden md:table-cell px-5 py-4 text-zinc-400 whitespace-nowrap">
+                        {item.threshold}{" "}
+                        <span className="text-xs text-zinc-500">{item.unit}</span>
+                      </td>
+                      <td className="hidden lg:table-cell px-5 py-4 text-zinc-400 whitespace-nowrap">
+                        {item.weekly_usage}{" "}
+                        <span className="text-xs text-zinc-500">{item.unit}</span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <StatusBadge status={item.status} />
+                      </td>
+                      <td className="hidden md:table-cell px-5 py-4 text-zinc-500 text-xs">{item.last_updated}</td>
+                      <td className="px-5 py-4 w-px whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setRestockTarget(item) }}
+                            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                          >
+                            <PackagePlus className="h-3.5 w-3.5" />
+                            Restock
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setStockOutTarget(item) }}
+                            className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-1.5 text-xs font-semibold text-orange-400 hover:bg-orange-500/20 transition-colors"
+                          >
+                            <PackageMinus className="h-3.5 w-3.5" />
+                            Stock Out
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeleteTarget(item) }}
+                            className="hidden sm:flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 hover:bg-red-500/10 hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>,
+                    isSelected && (
+                      <tr key={`${item.id}-actions`} className="sm:hidden bg-white/3 border-t border-white/5">
+                        <td colSpan={7} className="px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedId(null); setRestockTarget(item) }}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                            >
+                              <PackagePlus className="h-3.5 w-3.5" />
+                              Restock
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedId(null); setStockOutTarget(item) }}
+                              className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-orange-500/20 bg-orange-500/10 px-3 py-2 text-xs font-semibold text-orange-400 hover:bg-orange-500/20 transition-colors"
+                            >
+                              <PackageMinus className="h-3.5 w-3.5" />
+                              Stock Out
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSelectedId(null); setDeleteTarget(item) }}
+                              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs font-semibold text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ),
+                  ].filter(Boolean)
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Modals */}

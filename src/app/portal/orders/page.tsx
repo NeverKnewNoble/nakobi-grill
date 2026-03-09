@@ -59,24 +59,24 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
 
       {/* Dialog */}
-      <div className="relative z-10 flex w-full max-w-5xl h-[85vh] rounded-2xl border border-white/8 bg-zinc-900 shadow-2xl overflow-hidden">
+      <div className="relative z-10 flex flex-col sm:flex-row w-full max-w-5xl h-[92vh] sm:h-[85vh] rounded-2xl border border-white/8 bg-zinc-900 shadow-2xl overflow-hidden">
 
         {/* ── LEFT: Menu ── */}
-        <div className="flex flex-1 flex-col min-w-0 border-r border-white/5">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0 border-b sm:border-b-0 sm:border-r border-white/5">
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/5">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-white/5 shrink-0">
             <div>
               <p className="text-base font-bold text-white">Take Order</p>
               <p className="text-xs text-zinc-500 mt-0.5">Select items to add to the order</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Order type toggle */}
               <div className="flex rounded-xl border border-white/10 bg-zinc-800 p-1 gap-1">
                 {(["Dine In", "Takeaway"] as OrderType[]).map((t) => (
                   <button
                     key={t}
                     onClick={() => setOrderType(t)}
-                    className={`rounded-lg px-4 py-1.5 text-xs font-semibold transition-colors ${
+                    className={`rounded-lg px-3 sm:px-4 py-1.5 text-xs font-semibold transition-colors ${
                       orderType === t ? "bg-orange-500 text-white" : "text-zinc-400 hover:text-white"
                     }`}
                   >
@@ -94,12 +94,12 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
           </div>
 
           {/* Category tabs */}
-          <div className="flex gap-2 px-6 py-4 border-b border-white/5 overflow-x-auto">
+          <div className="flex gap-2 px-4 sm:px-6 py-3 sm:py-4 border-b border-white/5 overflow-x-auto shrink-0">
             {allCategories.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 sm:px-4 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors ${
                   activeCategory === cat
                     ? "bg-orange-500 text-white"
                     : "border border-white/10 text-zinc-400 hover:text-white hover:border-white/20"
@@ -112,7 +112,7 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
           </div>
 
           {/* Menu grid */}
-          <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
             <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
               {visibleMenu.map((item) => {
                 const inOrder = orderItems.find((o) => o.menuItem.id === item.id)
@@ -120,7 +120,7 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
                   <button
                     key={item.id}
                     onClick={() => handleAddItem(item)}
-                    className={`relative text-left rounded-2xl border p-4 transition-all ${
+                    className={`relative text-left rounded-2xl border p-3 sm:p-4 transition-all ${
                       inOrder
                         ? "border-orange-500/40 bg-orange-500/8"
                         : "border-white/5 bg-zinc-800/50 hover:border-white/10 hover:bg-zinc-800"
@@ -132,9 +132,9 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
                       </span>
                     )}
                     <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-1">{item.category}</p>
-                    <p className="font-semibold text-white leading-tight">{item.name}</p>
-                    <p className="mt-1 text-xs text-zinc-500 leading-snug line-clamp-2">{item.description}</p>
-                    <p className="mt-3 text-base font-extrabold text-orange-400">GHC {item.price.toFixed(2)}</p>
+                    <p className="font-semibold text-white leading-tight text-sm">{item.name}</p>
+                    <p className="mt-1 text-xs text-zinc-500 leading-snug line-clamp-2 hidden sm:block">{item.description}</p>
+                    <p className="mt-2 sm:mt-3 text-base font-extrabold text-orange-400">GHC {item.price.toFixed(2)}</p>
                   </button>
                 )
               })}
@@ -143,8 +143,8 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
         </div>
 
         {/* ── RIGHT: Current order ── */}
-        <div className="flex flex-col w-72 xl:w-80 shrink-0">
-          <div className="flex items-center gap-2 px-5 py-5 border-b border-white/5">
+        <div className="flex flex-col w-full sm:w-72 xl:w-80 shrink-0 max-h-[40vh] sm:max-h-none">
+          <div className="flex items-center gap-2 px-4 sm:px-5 py-3 sm:py-5 border-b border-white/5 shrink-0">
             <ShoppingCart className="h-4 w-4 text-orange-400" />
             <span className="font-bold text-white text-sm">Current Order</span>
             {orderItems.length > 0 && (
@@ -153,12 +153,12 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
           </div>
 
           {orderItems.length === 0 ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center px-6">
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-center px-6 py-4">
               <ShoppingCart className="h-8 w-8 text-zinc-700" />
               <p className="text-xs text-zinc-600">No items yet.<br />Tap a meal to add it.</p>
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-2">
+            <div className="flex-1 overflow-y-auto px-4 sm:px-5 py-3 sm:py-4 flex flex-col gap-2">
               {orderItems.map(({ menuItem, qty }) => (
                 <div key={menuItem.id} className="flex items-center gap-3">
                   <div className="flex-1 min-w-0">
@@ -191,7 +191,7 @@ function TakeOrderModal({ onClose, onPlace }: TakeOrderModalProps) {
             </div>
           )}
 
-          <div className="border-t border-white/5 px-5 py-5 flex flex-col gap-4">
+          <div className="border-t border-white/5 px-4 sm:px-5 py-4 sm:py-5 flex flex-col gap-3 sm:gap-4 shrink-0">
             <div className="flex justify-between items-baseline">
               <span className="text-sm text-zinc-400">Total</span>
               <span className="text-xl font-extrabold text-white">GHC {total.toFixed(2)}</span>
@@ -269,7 +269,7 @@ export default function OrdersPage() {
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Page header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Orders</h1>
           <p className="text-sm text-zinc-500 mt-0.5">
@@ -282,7 +282,7 @@ export default function OrdersPage() {
         </div>
         <button
           onClick={() => setModalOpen(true)}
-          className="inline-flex items-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 transition-colors"
+          className="inline-flex items-center justify-center gap-2 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-500/20 hover:bg-orange-400 transition-colors w-full sm:w-auto"
         >
           <Plus className="h-4 w-4" />
           Take New Order
@@ -330,7 +330,7 @@ export default function OrdersPage() {
                     </div>
                   </div>
                   <div className={`inline-flex items-center gap-1.5 rounded-full border border-current/20 px-2.5 py-1 text-xs font-semibold ${cfg.color}`}>
-                    <Icon className={`h-3 w-3 ${order.status === "preparing" ? "animate-spin" : ""}`} />
+                    <Icon className="h-3 w-3" />
                     {cfg.label}
                   </div>
                 </div>
@@ -365,7 +365,7 @@ export default function OrdersPage() {
                       onClick={() => handleAdvanceStatus(order)}
                       className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 py-2 text-xs font-semibold text-white transition-colors"
                     >
-                      {order.status === "pending" ? "Start" : "Mark Ready"}
+                      Mark Ready
                       <ChevronRight className="h-3.5 w-3.5" />
                     </button>
                   )}
