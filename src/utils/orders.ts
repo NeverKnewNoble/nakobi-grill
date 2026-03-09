@@ -91,7 +91,8 @@ export async function fetchOrders(): Promise<Order[]> {
     }),
     items: (row.order_items ?? []).map((li: any) => ({
       menuItem: {
-        id: li.menu_item_id,
+        // menu_item_id is nullable (SET NULL when item deleted) — fall back to order_item id so React keys are always unique
+        id: li.menu_item_id ?? li.id,
         name: li.menu_item_name,
         price: li.unit_price,
         description: "",
